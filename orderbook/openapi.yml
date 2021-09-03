@@ -84,7 +84,8 @@ paths:
             default: false
         - name: includeInsufficientBalance
           in: query
-          description: Should fill or kill orders that are not sufficiently funded be included?
+          description: |
+            Should fill or kill orders that are not sufficiently funded be included?
           schema:
             type: boolean
             default: false

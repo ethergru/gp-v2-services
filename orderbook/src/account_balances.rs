@@ -1,36 +1,35 @@
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use contracts::{BalancerV2Vault, ERC20};
 use ethcontract::{batch::CallBatch, Account};
-use futures::{
-    future::{self, join_all, BoxFuture},
-    FutureExt as _,
-};
-use model::order::SellTokenSource;
+use futures::{FutureExt, StreamExt};
+use model::order::{Order, SellTokenSource};
 use primitive_types::{H160, U256};
 use shared::{Web3, Web3Transport};
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::future::Future;
 use web3::types::{BlockId, BlockNumber, CallRequest};
 
-const MAX_BATCH_SIZE: usize = 100;
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub struct Query {
+    pub owner: H160,
+    pub token: H160,
+    pub source: SellTokenSource,
+}
+
+impl Query {
+    pub fn from_order(o: &Order) -> Self {
+        Self {
+            owner: o.order_meta_data.owner,
+            token: o.order_creation.sell_token,
+            source: o.order_creation.sell_token_balance,
+        }
+    }
+}
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait::async_trait]
 pub trait BalanceFetching: Send + Sync {
-    // Register owner and address for balance updates in the background
-    async fn register(&self, owner: H160, token: H160, source: SellTokenSource);
-
-    // Register multiple owner and addresses for balance updates in the background
-    async fn register_many(&self, owner_token_list: Vec<(H160, H160, SellTokenSource)>);
-
-    // Returns the latest balance available to the allowance manager for the given owner and token.
-    // Should be non-blocking. Returns None if balance has never been fetched.
-    fn get_balance(&self, owner: H160, token: H160, source: SellTokenSource) -> Option<U256>;
-
-    // Called periodically to perform potential updates on registered balances
-    async fn update(&self);
+    // Returns the balance available to the allowance manager for the given owner and token.
+    async fn get_balances(&self, queries: &[Query]) -> Vec<Result<U256>>;
 
     // Check that the settlement contract can make use of this user's token balance. This check
     // could fail if the user does not have enough balance, has not given the allowance to the
@@ -51,22 +50,6 @@ pub struct Web3BalanceFetcher {
     vault: Option<BalancerV2Vault>,
     vault_relayer: H160,
     settlement_contract: H160,
-    // Mapping of address, token to balance, allowance
-    balances: Mutex<HashMap<SubscriptionKey, SubscriptionValue>>,
-    metrics: Arc<dyn Metrics>,
-}
-
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-struct SubscriptionKey {
-    owner: H160,
-    token: H160,
-    source: SellTokenSource,
-}
-
-#[derive(Clone, Debug, Default)]
-struct SubscriptionValue {
-    balance: Option<U256>,
-    allowance: Option<U256>,
 }
 
 impl Web3BalanceFetcher {
@@ -75,65 +58,13 @@ impl Web3BalanceFetcher {
         vault: Option<BalancerV2Vault>,
         vault_relayer: H160,
         settlement_contract: H160,
-        metrics: Arc<dyn Metrics>,
     ) -> Self {
         Self {
             web3,
             vault,
             vault_relayer,
             settlement_contract,
-            balances: Default::default(),
-            metrics,
         }
-    }
-
-    async fn _register_many(&self, subscriptions: Vec<SubscriptionKey>) -> Result<()> {
-        let mut batch = CallBatch::new(self.web3.transport());
-
-        // Make sure subscriptions are registered for next update even if batch call fails.
-        // Note that we only add an entry if one does not already exist, this allows calls
-        // to `get_balance` to immediately return the previously cached value during the
-        // update.
-        {
-            let mut guard = self.balances.lock().expect("thread holding mutex panicked");
-            for subscription in &subscriptions {
-                guard.entry(*subscription).or_default();
-            }
-        }
-
-        let calls = subscriptions
-            .into_iter()
-            .map(|subscription| {
-                let token = ERC20::at(&self.web3, subscription.token);
-                let value = match (subscription.source, &self.vault) {
-                    (SellTokenSource::Erc20, _) => erc20_balance_query(
-                        &mut batch,
-                        token,
-                        subscription.owner,
-                        self.vault_relayer,
-                    ),
-                    (SellTokenSource::External, Some(vault)) => vault_external_balance_query(
-                        &mut batch,
-                        vault.clone(),
-                        token,
-                        subscription.owner,
-                        self.vault_relayer,
-                    ),
-                    _ => async { SubscriptionValue::default() }.boxed(),
-                };
-                future::join(future::ready(subscription), value)
-            })
-            .collect::<Vec<_>>();
-
-        batch.execute_all(usize::MAX).await;
-
-        let call_results = join_all(calls).await;
-        self.balances
-            .lock()
-            .expect("thread holding mutex panicked")
-            .extend(call_results);
-
-        Ok(())
     }
 
     async fn can_transfer_call(&self, token: H160, from: H160, amount: U256) -> bool {
@@ -178,116 +109,73 @@ impl Web3BalanceFetcher {
     }
 }
 
-fn erc20_balance_query<'a>(
-    batch: &mut CallBatch<&'a Web3Transport>,
+fn erc20_balance_query(
+    batch: &mut CallBatch<Web3Transport>,
     token: ERC20,
     owner: H160,
     spender: H160,
-) -> BoxFuture<'a, SubscriptionValue> {
+) -> impl Future<Output = Result<U256>> {
     let balance = token.balance_of(owner).batch_call(batch);
     let allowance = token.allowance(owner, spender).batch_call(batch);
-
     async move {
-        let (balance, allowance) = futures::join!(balance, allowance);
-
-        let mut value = SubscriptionValue::default();
-        match balance {
-            Ok(balance) => value.balance = Some(balance),
-            Err(_) => tracing::warn!(
-                "Couldn't fetch {:?} balance for {:?}",
-                token.address(),
-                owner
-            ),
-        }
-        match allowance {
-            Ok(allowance) => value.allowance = Some(allowance),
-            Err(_) => tracing::warn!(
-                "Couldn't fetch {:?} allowance from {:?} to {:?}",
-                token.address(),
-                owner,
-                spender
-            ),
-        }
-
-        value
+        let balance = balance.await.context("balance")?;
+        let allowance = allowance.await.context("allowance")?;
+        Ok(balance.min(allowance))
     }
-    .boxed()
 }
 
-fn vault_external_balance_query<'a>(
-    batch: &mut CallBatch<&'a Web3Transport>,
+fn vault_external_balance_query(
+    batch: &mut CallBatch<Web3Transport>,
     vault: BalancerV2Vault,
     token: ERC20,
     owner: H160,
     relayer: H160,
-) -> BoxFuture<'a, SubscriptionValue> {
-    let erc20 = erc20_balance_query(batch, token, owner, vault.address());
+) -> impl Future<Output = Result<U256>> {
+    let balance = token.balance_of(owner).batch_call(batch);
     let approval = vault.has_approved_relayer(owner, relayer).batch_call(batch);
-
     async move {
-        let (value, approval) = futures::join!(erc20, approval);
-        match approval {
-            Ok(true) => value,
-            Ok(false) => SubscriptionValue {
-                allowance: Some(0.into()),
-                ..value
-            },
-            Err(_) => {
-                tracing::warn!(
-                    "Couldn't fetch vault approval from {:?} to {:?}",
-                    owner,
-                    relayer
-                );
-                SubscriptionValue::default()
-            }
-        }
+        Ok(match approval.await.context("allowance")? {
+            true => balance.await.context("balance")?,
+            false => 0.into(),
+        })
     }
-    .boxed()
 }
 
 #[async_trait::async_trait]
 impl BalanceFetching for Web3BalanceFetcher {
-    async fn register(&self, owner: H160, token: H160, source: SellTokenSource) {
-        self.register_many(vec![(owner, token, source)]).await;
-    }
-
-    async fn register_many(&self, owner_token_list: Vec<(H160, H160, SellTokenSource)>) {
-        for chunk in owner_token_list.chunks(MAX_BATCH_SIZE) {
-            let subscriptions = chunk
-                .iter()
-                .map(|(owner, token, source)| SubscriptionKey {
-                    owner: *owner,
-                    token: *token,
-                    source: *source,
-                })
-                .collect();
-            let _ = self._register_many(subscriptions).await;
-        }
-    }
-
-    fn get_balance(&self, owner: H160, token: H160, source: SellTokenSource) -> Option<U256> {
-        let subscription = SubscriptionKey {
-            owner,
-            token,
-            source,
-        };
-        let SubscriptionValue { balance, allowance } = self
-            .balances
-            .lock()
-            .expect("thread holding mutex panicked")
-            .get(&subscription)
-            .cloned()
-            .unwrap_or_default();
-        Some(U256::min(balance?, allowance?))
-    }
-
-    async fn update(&self) {
-        let subscriptions: Vec<_> = {
-            let map = self.balances.lock().expect("mutex holding thread panicked");
-            map.keys().cloned().collect()
-        };
-        self.metrics.account_balance_update(subscriptions.len());
-        let _ = self._register_many(subscriptions).await;
+    async fn get_balances(&self, queries: &[Query]) -> Vec<Result<U256>> {
+        let mut batch = CallBatch::new(self.web3.transport().clone());
+        let futures = queries
+            .iter()
+            .map(|query| {
+                let token = ERC20::at(&self.web3, query.token);
+                match (query.source, &self.vault) {
+                    (SellTokenSource::Erc20, _) => {
+                        erc20_balance_query(&mut batch, token, query.owner, self.vault_relayer)
+                            .boxed()
+                    }
+                    (SellTokenSource::External, Some(vault)) => vault_external_balance_query(
+                        &mut batch,
+                        vault.clone(),
+                        token,
+                        query.owner,
+                        self.vault_relayer,
+                    )
+                    .boxed(),
+                    (SellTokenSource::External, None) => {
+                        async { Err(anyhow!("external balance but no vault")) }.boxed()
+                    }
+                    (SellTokenSource::Internal, _) => {
+                        async { Err(anyhow!("internal balances are not supported")) }.boxed()
+                    }
+                }
+            })
+            .collect::<Vec<_>>();
+        batch.execute_all(usize::MAX).await;
+        futures::stream::iter(futures)
+            .then(|future| future)
+            .collect()
+            .await
     }
 
     async fn can_transfer(
@@ -314,10 +202,6 @@ fn is_empty_or_truthy(bytes: &[u8]) -> bool {
         32 => bytes.iter().any(|byte| *byte > 0),
         _ => false,
     }
-}
-
-pub trait Metrics: Send + Sync + 'static {
-    fn account_balance_update(&self, accounts: usize);
 }
 
 #[cfg(test)]

@@ -20,8 +20,6 @@ pub struct Metrics {
     pool_cache_hits: IntCounter,
     pool_cache_misses: IntCounter,
     database_queries: HistogramVec,
-    /// account balance subscriptions
-    account_balance_queries: IntGauge,
 }
 
 impl Metrics {
@@ -109,12 +107,6 @@ impl PoolCacheMetrics for Metrics {
 impl crate::database::instrumented::Metrics for Metrics {
     fn database_query_histogram(&self, label: &str) -> Histogram {
         self.database_queries.with_label_values(&[label])
-    }
-}
-
-impl crate::account_balances::Metrics for Metrics {
-    fn account_balance_update(&self, accounts: usize) {
-        self.account_balance_queries.set(accounts as _);
     }
 }
 
