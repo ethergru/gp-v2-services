@@ -176,6 +176,11 @@ struct Arguments {
     archer_authorization: Option<String>,
 
     /// How to to submit settlement transactions.
+    /// - BaseNode: Use the base node url that is also used for everything else.
+    /// - ArcherNetwork: Use the formerly archer now eden network.
+    /// - CustomNodes: Use a list of custom nodes that may or may not include the base url.
+    ///   Transactions will be submitted to all of them.
+    /// - DryRun: Do not actually submit any transactions.
     #[structopt(long, env, default_value = "PublicMempool")]
     transaction_strategy: TransactionStrategyArg,
 
@@ -188,9 +193,9 @@ struct Arguments {
     )]
     max_archer_submission_seconds: Duration,
 
-    /// The RPC endpoint to use for submitting private network transactions.
-    #[structopt(long, env)]
-    private_tx_network_url: Option<Url>,
+    /// The RPC endpoints to use for submitting transactions for the CustomNodes strategy.
+    #[structopt(long, env, use_delimiter = true)]
+    custom_tx_submission_nodes: Vec<Url>,
 
     /// The configured addresses whose orders should be considered liquidity
     /// and not to be included in the objective function by the HTTP solver.
@@ -201,9 +206,9 @@ struct Arguments {
 arg_enum! {
     #[derive(Debug)]
     pub enum TransactionStrategyArg {
-        PublicMempool,
+        BaseNode,
         ArcherNetwork,
-        PrivateNetwork,
+        CustomNodes,
         DryRun,
     }
 }
@@ -421,7 +426,6 @@ async fn main() {
         target_confirm_time: args.target_confirm_time,
         gas_price_cap: args.gas_price_cap,
         transaction_strategy: match args.transaction_strategy {
-            TransactionStrategyArg::PublicMempool => TransactionStrategy::PublicMempool,
             TransactionStrategyArg::ArcherNetwork => TransactionStrategy::ArcherNetwork {
                 archer_api: ArcherApi::new(
                     args.archer_authorization
@@ -430,17 +434,26 @@ async fn main() {
                 ),
                 max_confirm_time: args.max_archer_submission_seconds,
             },
-            TransactionStrategyArg::PrivateNetwork => TransactionStrategy::PrivateNetwork {
-                network_rpc: {
-                    let url = args
-                        .private_tx_network_url
-                        .expect("missing private transaction network URL");
-                    let transport = create_instrumented_transport(
-                        HttpTransport::new(client.clone(), url),
-                        metrics.clone(),
-                    );
-                    web3::Web3::new(transport)
-                },
+            TransactionStrategyArg::CustomNodes => {
+                assert!(
+                    !args.custom_tx_submission_nodes.is_empty(),
+                    "need at least one custom tx submission node"
+                );
+                TransactionStrategy::Custom {
+                    nodes: args
+                        .custom_tx_submission_nodes
+                        .into_iter()
+                        .map(|url| {
+                            web3::Web3::new(create_instrumented_transport(
+                                HttpTransport::new(client.clone(), url),
+                                metrics.clone(),
+                            ))
+                        })
+                        .collect(),
+                }
+            }
+            TransactionStrategyArg::BaseNode => TransactionStrategy::Custom {
+                nodes: vec![web3.clone()],
             },
             TransactionStrategyArg::DryRun => TransactionStrategy::DryRun,
         },

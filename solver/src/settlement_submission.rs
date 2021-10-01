@@ -3,7 +3,8 @@ pub mod archer_settlement;
 mod dry_run;
 mod gas_price_stream;
 pub mod retry;
-pub mod rpc;
+pub mod custom_nodes;
+pub mod temp;
 
 use crate::{encoding::EncodedSettlement, settlement::Settlement};
 use anyhow::{anyhow, Result};
@@ -45,13 +46,12 @@ pub struct SolutionSubmitter {
 }
 
 pub enum TransactionStrategy {
-    PublicMempool,
     ArcherNetwork {
         archer_api: ArcherApi,
         max_confirm_time: Duration,
     },
-    PrivateNetwork {
-        network_rpc: Web3,
+    Custom {
+        nodes: Vec<Web3>,
     },
     DryRun,
 }
@@ -69,16 +69,17 @@ impl SolutionSubmitter {
         account: Account,
     ) -> Result<TransactionHash> {
         match &self.transaction_strategy {
-            TransactionStrategy::PublicMempool => {
-                rpc::submit(
+            TransactionStrategy::Custom { nodes } => {
+                custom_nodes::submit(
                     account,
+                    &self.web3,
+                    nodes,
                     &self.contract,
                     self.gas_price_estimator.as_ref(),
                     self.target_confirm_time,
                     self.gas_price_cap,
                     settlement,
                     gas_estimate,
-                    None,
                 )
                 .await
             }
@@ -107,19 +108,6 @@ impl SolutionSubmitter {
                     Ok(None) => Err(anyhow!("transaction did not get mined in time")),
                     Err(err) => Err(err),
                 }
-            }
-            TransactionStrategy::PrivateNetwork { network_rpc } => {
-                rpc::submit(
-                    account,
-                    &self.contract,
-                    self.gas_price_estimator.as_ref(),
-                    self.target_confirm_time,
-                    self.gas_price_cap,
-                    settlement,
-                    gas_estimate,
-                    Some(network_rpc),
-                )
-                .await
             }
             TransactionStrategy::DryRun => {
                 dry_run::log_settlement(account, &self.contract, settlement).await

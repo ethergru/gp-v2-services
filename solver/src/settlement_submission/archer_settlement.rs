@@ -27,8 +27,8 @@
 // to tenderly simulations and mined transactions. This causes us to overpay somewhat.
 
 use super::{archer_api::ArcherApi, ESTIMATE_GAS_LIMIT_FACTOR};
-use crate::{interactions::block_coinbase, settlement::Settlement};
-use anyhow::{anyhow, Context, Result};
+use crate::{interactions::block_coinbase, settlement::Settlement, settlement_submission::temp};
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use contracts::GPv2Settlement;
 use ethcontract::{errors::MethodError, transaction::Transaction, Account, GasPrice};
@@ -37,7 +37,6 @@ use gas_estimation::GasPriceEstimating;
 use primitive_types::{H256, U256};
 use shared::Web3;
 use std::time::{Duration, Instant, SystemTime};
-use web3::types::TransactionId;
 
 pub struct ArcherSolutionSubmitter<'a> {
     pub web3: &'a Web3,
@@ -110,7 +109,7 @@ impl<'a> ArcherSolutionSubmitter<'a> {
             );
 
             loop {
-                if let Some(hash) = find_mined_transaction(self.web3, &transactions).await {
+                if let Some(hash) = temp::find_mined_transaction(self.web3, &transactions).await {
                     tracing::info!("found mined transaction {}", hash);
                     return Ok(Some(hash));
                 }
@@ -126,25 +125,13 @@ impl<'a> ArcherSolutionSubmitter<'a> {
     }
 
     async fn nonce(&self) -> Result<U256> {
-        self.web3
-            .eth()
-            .transaction_count(self.account.address(), None)
-            .await
-            .context("transaction_count")
+        temp::nonce(&self.web3, self.account.address()).await
     }
 
     /// Keep polling the account's nonce until it is different from initial_nonce returning the new
     /// nonce.
     async fn wait_for_nonce_to_change(&self, initial_nonce: U256) -> U256 {
-        const POLL_INTERVAL: Duration = Duration::from_secs(1);
-        loop {
-            match self.nonce().await {
-                Ok(nonce) if nonce != initial_nonce => return nonce,
-                Ok(_) => (),
-                Err(err) => tracing::error!("web3 error while getting nonce: {:?}", err),
-            }
-            tokio::time::sleep(POLL_INTERVAL).await;
-        }
+        temp::wait_for_nonce_to_change(&self.web3, self.account.address(), initial_nonce).await
     }
 
     async fn gas_price(&self, gas_limit: f64, time_limit: Duration) -> Result<f64> {
@@ -211,16 +198,13 @@ impl<'a> ArcherSolutionSubmitter<'a> {
                 .append_to_execution_plan(block_coinbase::PayBlockCoinbase {
                     amount: tx_gas_cost_in_ether_wei,
                 });
-            let method = super::retry::settle_method_builder(
-                self.contract,
-                settlement.into(),
-                self.account.clone(),
-            )
-            .nonce(nonce)
-            // Wouldn't work because the function isn't payable.
-            // .value(tx_gas_cost_in_ether_wei)
-            .gas(U256::from_f64_lossy(gas_limit))
-            .gas_price(GasPrice::Value(U256::zero()));
+            let method =
+                temp::settle_method_builder(self.contract, settlement.into(), self.account.clone())
+                    .nonce(nonce)
+                    // Wouldn't work because the function isn't payable.
+                    // .value(tx_gas_cost_in_ether_wei)
+                    .gas(U256::from_f64_lossy(gas_limit))
+                    .gas_price(GasPrice::Value(U256::zero()));
 
             // simulate transaction
 
@@ -278,33 +262,6 @@ impl<'a> ArcherSolutionSubmitter<'a> {
     }
 }
 
-/// From a list of potential hashes find one that was mined.
-async fn find_mined_transaction(web3: &Web3, hashes: &[H256]) -> Option<H256> {
-    // It would be nice to use the nonce and account address to find the transaction hash but there
-    // is no way to do this in ethrpc api so we have to check the candidates one by one.
-    let web3 = web3::Web3::new(web3::transports::Batch::new(web3.transport()));
-    let futures = hashes
-        .iter()
-        .map(|&hash| web3.eth().transaction(TransactionId::Hash(hash)))
-        .collect::<Vec<_>>();
-    if let Err(err) = web3.transport().submit_batch().await {
-        tracing::error!("mined transaction batch failed: {:?}", err);
-        return None;
-    }
-    for future in futures {
-        match future.now_or_never().unwrap() {
-            Err(err) => {
-                tracing::error!("mined transaction individual failed: {:?}", err);
-            }
-            Ok(Some(transaction)) if transaction.block_hash.is_some() => {
-                return Some(transaction.hash)
-            }
-            Ok(_) => (),
-        }
-    }
-    None
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -328,7 +285,10 @@ mod tests {
                 "b9752d57ea49d8055bf50a1361f066691d7b4f2abd555e71896370d1eccda526"
             )),
         ];
-        assert_eq!(find_mined_transaction(&web3, hashes).await, Some(hashes[1]));
+        assert_eq!(
+            temp::find_mined_transaction(&web3, hashes).await,
+            Some(hashes[1])
+        );
     }
 
     // env NODE_URL=... PRIVATE_KEY=... ARCHER_AUTHORIZATION=... cargo test -p solver mainnet_settlement -- --ignored --nocapture

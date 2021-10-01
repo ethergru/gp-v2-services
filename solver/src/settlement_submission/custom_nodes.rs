@@ -1,58 +1,50 @@
-use super::{
-    gas_price_stream::gas_price_stream,
-    retry::{CancelSender, SettlementSender},
-    ESTIMATE_GAS_LIMIT_FACTOR,
-};
+use super::{gas_price_stream::gas_price_stream, ESTIMATE_GAS_LIMIT_FACTOR};
 use crate::{encoding::EncodedSettlement, pending_transactions::Fee, settlement::Settlement};
 use anyhow::{Context, Result};
 use contracts::GPv2Settlement;
-use ethcontract::{dyns::DynTransport, Account, TransactionHash, Web3};
+use ethcontract::{Account, TransactionHash};
 use futures::stream::StreamExt;
 use gas_estimation::GasPriceEstimating;
 use primitive_types::{H160, U256};
-use std::{borrow::Cow, time::Duration};
-use transaction_retry::RetryResult;
+use shared::Web3;
+use std::time::Duration;
 
-// Submit a settlement to the contract, updating the transaction with gas prices if they increase.
+pub struct CustomNodeSubmitter {}
+
+impl CustomNodeSubmitter {}
+
+/// Submit a settlement to the contract, updating the transaction with gas prices if they increase.
+///
+/// The base node is used to find potentially existing transactions and to see if the transaction
+/// gets mined.
+/// The submission nodes are all used to submit the transaction simultaneously. We error if all of
+/// them fail.
 #[allow(clippy::too_many_arguments)]
 pub async fn submit(
     account: Account,
+    base_node: &Web3,
+    submission_nodes: &[Web3],
     contract: &GPv2Settlement,
     gas: &dyn GasPriceEstimating,
     target_confirm_time: Duration,
     gas_price_cap: f64,
     settlement: Settlement,
     gas_estimate: U256,
-    private_network: Option<&shared::Web3>,
 ) -> Result<TransactionHash> {
     let address = account.address();
     let settlement: EncodedSettlement = settlement.into();
 
-    let web3 = contract.raw_instance().web3();
-    let nonce = web3
+    let nonce = base_node
         .eth()
         .transaction_count(address, None)
         .await
         .context("failed to get transaction_count")?;
     let pending_gas_price =
-        recover_gas_price_from_pending_transaction(&web3, &address, nonce).await?;
+        recover_gas_price_from_pending_transaction(base_node, &address, nonce).await?;
 
     // Account for some buffer in the gas limit in case racing state changes result in slightly more heavy computation at execution time
     let gas_limit = gas_estimate.to_f64_lossy() * ESTIMATE_GAS_LIMIT_FACTOR;
 
-    let contract = match private_network {
-        Some(rpc) => Cow::Owned(GPv2Settlement::at(rpc, contract.address())),
-        None => Cow::Borrowed(contract),
-    };
-    let settlement_sender = SettlementSender {
-        contract: &*contract,
-        nonce,
-        gas_limit,
-        settlement,
-        account,
-    };
-    // We never cancel.
-    let cancel_future = std::future::pending::<CancelSender>();
     if let Some(gas_price) = pending_gas_price {
         tracing::info!(
             "detected existing pending transaction with gas price {}",
@@ -78,6 +70,10 @@ pub async fn submit(
     )
     .boxed();
 
+    // todo: monitor nonce from base node and cancel if increments
+    // or just future select the cancel future
+    todo!()
+    /*
     match transaction_retry::retry(settlement_sender, cancel_future, stream).await {
         Some(RetryResult::Submitted(result)) => {
             tracing::info!("completed settlement submission");
@@ -85,10 +81,11 @@ pub async fn submit(
         }
         _ => unreachable!(),
     }
+    */
 }
 
 async fn recover_gas_price_from_pending_transaction(
-    web3: &Web3<DynTransport>,
+    web3: &Web3,
     address: &H160,
     nonce: U256,
 ) -> Result<Option<U256>> {

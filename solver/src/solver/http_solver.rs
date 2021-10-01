@@ -6,7 +6,7 @@ use self::{model::*, settlement::SettlementContext};
 use crate::{
     liquidity::{LimitOrder, Liquidity},
     settlement::Settlement,
-    settlement_submission::retry::is_transaction_failure,
+    settlement_submission::temp,
     solver::{Auction, Solver},
 };
 use ::model::order::OrderKind;
@@ -172,7 +172,9 @@ impl HttpSolver {
         let buffers: HashMap<_, _> = buffers_result
             .drain()
             .filter_map(|(token, buffer)| match buffer {
-                Err(BufferRetrievalError::Erc20(err)) if is_transaction_failure(&err.inner) => {
+                Err(BufferRetrievalError::Erc20(err))
+                    if temp::is_transaction_failure(&err.inner) =>
+                {
                     tracing::debug!(
                         "Failed to fetch buffers for token {} with transaction failure {}",
                         token,

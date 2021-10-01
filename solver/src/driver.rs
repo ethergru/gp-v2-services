@@ -7,7 +7,7 @@ use crate::{
     metrics::SolverMetrics,
     settlement::Settlement,
     settlement_simulation,
-    settlement_submission::{self, retry::is_transaction_failure, SolutionSubmitter},
+    settlement_submission::{self, temp, SolutionSubmitter},
     solver::Solver,
     solver::{Auction, SettlementWithSolver, Solvers},
 };
@@ -167,7 +167,7 @@ impl Driver {
                 let name = solver.name();
                 if err
                     .downcast_ref::<MethodError>()
-                    .map(|e| is_transaction_failure(&e.inner))
+                    .map(|e| temp::is_transaction_failure(&e.inner))
                     .unwrap_or(false)
                 {
                     tracing::warn!("Failed to submit {} settlement: {:?}", name, err)
