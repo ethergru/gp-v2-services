@@ -5,8 +5,6 @@ use primitive_types::H160;
 use shared::conversions::U256Ext;
 use std::{collections::HashMap, time::Duration};
 
-// Return None if the result is an error or there are no settlements remaining after removing
-// settlements with no trades.
 pub fn filter_empty_settlements(settlements: &mut Vec<Settlement>) {
     settlements.retain(|settlement| !settlement.trades().is_empty());
 }

@@ -30,6 +30,8 @@ pub trait SolverMetrics: Send + Sync {
     fn settlement_simulation_succeeded(&self, solver: &'static str);
     fn settlement_simulation_failed_on_latest(&self, solver: &'static str);
     fn solver_run_succeeded(&self, solver: &'static str);
+    fn solver_run_empty(&self, solver: &'static str);
+    fn solver_run_timeout(&self, solver: &'static str);
     fn solver_run_failed(&self, solver: &'static str);
     fn single_order_solver_succeeded(&self, solver: &'static str);
     fn single_order_solver_failed(&self, solver: &'static str);
@@ -252,6 +254,16 @@ impl SolverMetrics for Metrics {
             .inc()
     }
 
+    fn solver_run_empty(&self, solver: &'static str) {
+        self.solver_runs.with_label_values(&["empty", solver]).inc()
+    }
+
+    fn solver_run_timeout(&self, solver: &'static str) {
+        self.solver_runs
+            .with_label_values(&["timeout", solver])
+            .inc()
+    }
+
     fn solver_run_failed(&self, solver: &'static str) {
         self.solver_runs
             .with_label_values(&["failure", solver])
@@ -355,6 +367,8 @@ impl SolverMetrics for NoopMetrics {
     fn settlement_simulation_succeeded(&self, _: &'static str) {}
     fn settlement_simulation_failed_on_latest(&self, _: &'static str) {}
     fn solver_run_succeeded(&self, _: &'static str) {}
+    fn solver_run_empty(&self, _: &'static str) {}
+    fn solver_run_timeout(&self, _: &'static str) {}
     fn solver_run_failed(&self, _: &'static str) {}
     fn single_order_solver_succeeded(&self, _: &'static str) {}
     fn single_order_solver_failed(&self, _: &'static str) {}

@@ -11,7 +11,7 @@ use crate::{
     solver::Solver,
     solver::{Auction, SettlementWithSolver, Solvers},
 };
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use contracts::GPv2Settlement;
 use ethcontract::errors::{ExecutionError, MethodError};
 use futures::future::join_all;
@@ -115,7 +115,7 @@ impl Driver {
     async fn run_solvers(
         &self,
         auction: Auction,
-    ) -> Vec<(Arc<dyn Solver>, Result<Vec<Settlement>>)> {
+    ) -> Vec<(Arc<dyn Solver>, Result<Vec<Settlement>, SolverRunError>)> {
         join_all(self.solvers.iter().map(|solver| {
             let auction = auction.clone();
             let metrics = &self.metrics;
@@ -125,8 +125,8 @@ impl Driver {
                     match tokio::time::timeout_at(auction.deadline.into(), solver.solve(auction))
                         .await
                     {
-                        Ok(inner) => inner,
-                        Err(_timeout) => Err(anyhow!("solver timed out")),
+                        Ok(inner) => inner.map_err(SolverRunError::Solving),
+                        Err(_timeout) => Err(SolverRunError::Timeout),
                     };
                 metrics.settlement_computed(solver.name(), start_time);
                 (solver.clone(), result)
@@ -410,18 +410,25 @@ impl Driver {
             let name = solver.name();
 
             let mut settlements = match settlements {
-                Ok(settlement) => {
+                Ok(mut settlement) => {
+                    solver_settlements::filter_empty_settlements(&mut settlement);
+                    if settlement.is_empty() {
+                        self.metrics.solver_run_empty(name);
+                        continue;
+                    }
+
                     self.metrics.solver_run_succeeded(name);
                     settlement
                 }
                 Err(err) => {
-                    self.metrics.solver_run_failed(name);
+                    match err {
+                        SolverRunError::Timeout => self.metrics.solver_run_timeout(name),
+                        SolverRunError::Solving(_) => self.metrics.solver_run_failed(name),
+                    }
                     tracing::warn!("solver {} error: {:?}", name, err);
                     continue;
                 }
             };
-
-            solver_settlements::filter_empty_settlements(&mut settlements);
 
             for settlement in &settlements {
                 tracing::debug!("solver {} found solution:\n{:?}", name, settlement);
@@ -601,6 +608,12 @@ fn is_only_selling_trusted_tokens(settlement: &Settlement, token_list: &TokenLis
             .get(&trade.order.order_creation.sell_token)
             .is_none()
     })
+}
+
+#[derive(Debug)]
+enum SolverRunError {
+    Timeout,
+    Solving(anyhow::Error),
 }
 
 #[cfg(test)]
