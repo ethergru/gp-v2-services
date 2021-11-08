@@ -5,11 +5,12 @@
 use anyhow::{anyhow, bail, Context as _, Result};
 use contracts::*;
 use env_logger::Env;
-use ethcontract::{Address, Http, Web3, U256};
+use ethcontract::{Address, H160, Http, U256, Web3};
 use filetime::FileTime;
 use std::{
     fs,
     path::Path,
+    str::FromStr,
     time::{Duration, Instant, SystemTime},
 };
 
@@ -24,21 +25,20 @@ async fn main() {
 }
 
 async fn run() -> Result<()> {
-    const NODE_URL: &str = "http://localhost:8545";
+    // const NODE_URL: &str = "http://localhost:8545";
+    const NODE_URL: &str = "https://data-seed-prebsc-1-s1.binance.org:8545";
 
-    let http = Http::new(NODE_URL)?;
-    let web3 = Web3::new(http);
-
-    log::info!("checking connection to local test node {}", NODE_URL);
+    let transport = Http::new(NODE_URL)?;
+    let web3 = Web3::new(transport);
+    log::info!("checking connection to local test node {:?}", web3);
     wait_for_node(&web3).await?;
 
     let network_id = web3.net().version().await.expect("get network ID failed");
     write_network_id(&network_id)?;
     log::info!("connected to test network {}", network_id);
-
-    let accounts: Vec<Address> = web3.eth().accounts().await.expect("get accounts failed");
+    let mut accounts: Vec<Address> = web3.eth().accounts().await.expect("get accounts failed");
+    accounts.push(H160::from_str("02bcac94c537b1ca9e92d1a7f3ca6cbd25e0f67c").unwrap());
     let admin = accounts[0];
-
     macro_rules! deploy {
             ($contract:ident) => { deploy!($contract ()) };
             ($contract:ident ( $($param:expr),* $(,)? )) => {

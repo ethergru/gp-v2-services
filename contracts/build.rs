@@ -41,6 +41,22 @@ fn main() {
                     deployment_information: Some(DeploymentInformation::BlockNumber(8441702)),
                 },
             )
+            .add_network(
+                "97",
+                Network {
+                    address: addr("0xBA12222222228d8Ba445958a75a0704d566BF2C8"),
+                    // <https://rinkeby.etherscan.io/tx/0x5fe65a242760f7f32b582dc402a081791d57ea561474617fcd0e763c995cfec7>
+                    deployment_information: Some(DeploymentInformation::BlockNumber(8441702)),
+                },
+            )
+            .add_network(
+                "56",
+                Network {
+                    address: addr("0xBA12222222228d8Ba445958a75a0704d566BF2C8"),
+                    // <https://rinkeby.etherscan.io/tx/0x5fe65a242760f7f32b582dc402a081791d57ea561474617fcd0e763c995cfec7>
+                    deployment_information: Some(DeploymentInformation::BlockNumber(8441702)),
+                },
+            )
     });
     generate_contract_with_config("BalancerV2WeightedPoolFactory", |builder| {
         builder
@@ -56,6 +72,24 @@ fn main() {
             )
             .add_network(
                 "4",
+                Network {
+                    address: addr("0x8E9aa87E45e92bad84D5F8DD1bff34Fb92637dE9"),
+                    deployment_information: Some(tx(
+                        "0xae8c45c1d40756d0eb312723a2993341e379ea6d8bef4adfae2709345939f8eb",
+                    )),
+                },
+            )
+            .add_network(
+                "97",
+                Network {
+                    address: addr("0x8E9aa87E45e92bad84D5F8DD1bff34Fb92637dE9"),
+                    deployment_information: Some(tx(
+                        "0xae8c45c1d40756d0eb312723a2993341e379ea6d8bef4adfae2709345939f8eb",
+                    )),
+                },
+            )
+            .add_network(
+                "56",
                 Network {
                     address: addr("0x8E9aa87E45e92bad84D5F8DD1bff34Fb92637dE9"),
                     deployment_information: Some(tx(
@@ -85,6 +119,24 @@ fn main() {
                     )),
                 },
             )
+            .add_network(
+                "97",
+                Network {
+                    address: addr("0xa5bf2ddf098bb0ef6d120c98217dd6b141c74ee0"),
+                    deployment_information: Some(tx(
+                        "be28062b575c2743b3b4525c3a175b9acad36695c15dba1c69af5f3fc3ceca37",
+                    )),
+                },
+            )
+            .add_network(
+                "56",
+                Network {
+                    address: addr("0xa5bf2ddf098bb0ef6d120c98217dd6b141c74ee0"),
+                    deployment_information: Some(tx(
+                        "be28062b575c2743b3b4525c3a175b9acad36695c15dba1c69af5f3fc3ceca37",
+                    )),
+                },
+            )
     });
     generate_contract_with_config("BalancerV2StablePoolFactory", |builder| {
         builder
@@ -100,6 +152,24 @@ fn main() {
             )
             .add_network(
                 "4",
+                Network {
+                    address: addr("0xc66ba2b6595d3613ccab350c886ace23866ede24"),
+                    deployment_information: Some(tx(
+                        "26ccac4bd7af78607107489fa05868a68291b5e6f217f6829fc3767d8926264a",
+                    )),
+                },
+            )
+            .add_network(
+                "97",
+                Network {
+                    address: addr("0xc66ba2b6595d3613ccab350c886ace23866ede24"),
+                    deployment_information: Some(tx(
+                        "26ccac4bd7af78607107489fa05868a68291b5e6f217f6829fc3767d8926264a",
+                    )),
+                },
+            )
+            .add_network(
+                "56",
                 Network {
                     address: addr("0xc66ba2b6595d3613ccab350c886ace23866ede24"),
                     deployment_information: Some(tx(
@@ -155,30 +225,40 @@ fn main() {
         builder
             .add_network_str("1", "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F")
             .add_network_str("4", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
+            .add_network_str("97", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
+            .add_network_str("56", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
             .add_network_str("100", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
     });
     generate_contract_with_config("SushiswapV2Factory", |builder| {
         builder
             .add_network_str("1", "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac")
             .add_network_str("4", "0xc35DADB65012eC5796536bD9864eD8773aBc74C4")
+            .add_network_str("97", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
+            .add_network_str("56", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
             .add_network_str("100", "0xc35DADB65012eC5796536bD9864eD8773aBc74C4")
     });
     generate_contract_with_config("UniswapV2Router02", |builder| {
         builder
             .add_network_str("1", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D")
             .add_network_str("4", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D")
+            .add_network_str("97", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
+            .add_network_str("56", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
             .add_network_str("100", "0x1C232F01118CB8B424793ae03F870aa7D0ac7f77")
     });
     generate_contract_with_config("UniswapV2Factory", |builder| {
         builder
             .add_network_str("1", "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f")
             .add_network_str("4", "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f")
+            .add_network_str("97", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
+            .add_network_str("56", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
             .add_network_str("100", "0xA818b4F111Ccac7AA31D0BCc0806d64F2E0737D7")
     });
     generate_contract_with_config("WETH9", |builder| {
         builder
             .add_network_str("1", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")
             .add_network_str("4", "0xc778417E063141139Fce010982780140Aa0cD5Ab")
+            .add_network_str("97", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
+            .add_network_str("56", "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506")
             .add_network_str("100", "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d")
     });
 }

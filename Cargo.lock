@@ -54,7 +54,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "model",
- "primitive-types",
+ "primitive-types 0.10.1",
  "reqwest",
  "serde",
  "shared",
@@ -88,6 +88,12 @@ name = "anyhow"
 version = "1.0.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61604a8f862e1d5c3229fdd78f8b02c68dcf73a4c4b05fd636d12240aaa242c1"
+
+[[package]]
+name = "arrayvec"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
 
 [[package]]
 name = "arrayvec"
@@ -334,6 +340,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "web3 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -652,7 +659,7 @@ dependencies = [
  "solver",
  "tokio",
  "tracing",
- "web3",
+ "web3 0.17.0 (git+https://github.com/tomusdrw/rust-web3.git?rev=a425fa747bca69c7aede4d2c2828f7267d79227e)",
 ]
 
 [[package]]
@@ -709,12 +716,28 @@ dependencies = [
 
 [[package]]
 name = "ethabi"
+version = "14.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a01317735d563b3bad2d5f90d2e1799f414165408251abb762510f40e790e69a"
+dependencies = [
+ "anyhow",
+ "ethereum-types 0.11.0",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha3",
+ "thiserror",
+ "uint",
+]
+
+[[package]]
+name = "ethabi"
 version = "15.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f76ef192b63e8a44b3d08832acebbb984c3fba154b5c26f70037c860202a0d4b"
 dependencies = [
  "anyhow",
- "ethereum-types",
+ "ethereum-types 0.12.1",
  "hex",
  "serde",
  "serde_json",
@@ -741,7 +764,7 @@ name = "ethcontract"
 version = "0.15.3"
 source = "git+https://github.com/gnosis/ethcontract-rs.git?rev=cafcac443f37cfe1e0e18b03a987a30b61b54695#cafcac443f37cfe1e0e18b03a987a30b61b54695"
 dependencies = [
- "arrayvec",
+ "arrayvec 0.7.1",
  "ethcontract-common",
  "ethcontract-derive",
  "futures",
@@ -749,13 +772,13 @@ dependencies = [
  "hex",
  "jsonrpc-core",
  "lazy_static",
- "primitive-types",
+ "primitive-types 0.10.1",
  "secp256k1",
  "serde",
  "serde_json",
  "thiserror",
  "uint",
- "web3",
+ "web3 0.17.0 (git+https://github.com/tomusdrw/rust-web3.git?rev=a425fa747bca69c7aede4d2c2828f7267d79227e)",
  "zeroize",
 ]
 
@@ -764,14 +787,14 @@ name = "ethcontract-common"
 version = "0.15.3"
 source = "git+https://github.com/gnosis/ethcontract-rs.git?rev=cafcac443f37cfe1e0e18b03a987a30b61b54695#cafcac443f37cfe1e0e18b03a987a30b61b54695"
 dependencies = [
- "ethabi",
+ "ethabi 15.0.0",
  "hex",
  "serde",
  "serde_derive",
  "serde_json",
  "thiserror",
  "tiny-keccak",
- "web3",
+ "web3 0.17.0 (git+https://github.com/tomusdrw/rust-web3.git?rev=a425fa747bca69c7aede4d2c2828f7267d79227e)",
 ]
 
 [[package]]
@@ -816,6 +839,20 @@ dependencies = [
 
 [[package]]
 name = "ethereum-types"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f64b5df66a228d85e4b17e5d6c6aa43b0310898ffe8a85988c4c032357aaabfd"
+dependencies = [
+ "ethbloom",
+ "fixed-hash",
+ "impl-rlp",
+ "impl-serde",
+ "primitive-types 0.9.1",
+ "uint",
+]
+
+[[package]]
+name = "ethereum-types"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05136f7057fe789f06e6d41d07b34e6f70d8c86e5693b60f97aaa6553553bdaf"
@@ -824,7 +861,7 @@ dependencies = [
  "fixed-hash",
  "impl-rlp",
  "impl-serde",
- "primitive-types",
+ "primitive-types 0.10.1",
  "uint",
 ]
 
@@ -1033,7 +1070,7 @@ dependencies = [
  "async-trait",
  "futures",
  "http",
- "primitive-types",
+ "primitive-types 0.10.1",
  "serde",
  "serde_json",
  "serde_with",
@@ -1041,7 +1078,7 @@ dependencies = [
  "tokio-tungstenite 0.15.0",
  "tracing",
  "url",
- "web3",
+ "web3 0.17.0 (git+https://github.com/tomusdrw/rust-web3.git?rev=a425fa747bca69c7aede4d2c2828f7267d79227e)",
 ]
 
 [[package]]
@@ -1578,19 +1615,19 @@ dependencies = [
  "chrono",
  "derivative",
  "enum-utils",
- "ethabi",
+ "ethabi 15.0.0",
  "hex",
  "hex-literal",
  "lazy_static",
  "maplit",
  "num",
  "num-bigint 0.3.3",
- "primitive-types",
+ "primitive-types 0.10.1",
  "secp256k1",
  "serde",
  "serde_json",
  "serde_with",
- "web3",
+ "web3 0.17.0 (git+https://github.com/tomusdrw/rust-web3.git?rev=a425fa747bca69c7aede4d2c2828f7267d79227e)",
 ]
 
 [[package]]
@@ -1833,7 +1870,7 @@ dependencies = [
  "model",
  "num",
  "num-bigint 0.3.3",
- "primitive-types",
+ "primitive-types 0.10.1",
  "prometheus",
  "prometheus-metric-storage",
  "reqwest",
@@ -1849,7 +1886,7 @@ dependencies = [
  "tracing",
  "url",
  "warp",
- "web3",
+ "web3 0.17.0 (git+https://github.com/tomusdrw/rust-web3.git?rev=a425fa747bca69c7aede4d2c2828f7267d79227e)",
 ]
 
 [[package]]
@@ -1858,7 +1895,7 @@ version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "373b1a4c1338d9cd3d1fa53b3a11bdab5ab6bd80a20f7f7becd76953ae2be909"
 dependencies = [
- "arrayvec",
+ "arrayvec 0.7.1",
  "bitvec",
  "byte-slice-cast",
  "impl-trait-for-tuples",
@@ -2017,6 +2054,19 @@ checksum = "338c7be2905b732ae3984a2f40032b5e94fd8f52505b186c7d4d68d193445df7"
 dependencies = [
  "predicates-core",
  "termtree",
+]
+
+[[package]]
+name = "primitive-types"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06345ee39fbccfb06ab45f3a1a5798d9dafa04cb8921a76d227040003a234b0e"
+dependencies = [
+ "fixed-hash",
+ "impl-codec",
+ "impl-rlp",
+ "impl-serde",
+ "uint",
 ]
 
 [[package]]
@@ -2619,7 +2669,7 @@ dependencies = [
  "num",
  "num-bigint 0.3.3",
  "once_cell",
- "primitive-types",
+ "primitive-types 0.10.1",
  "prometheus",
  "prometheus-metric-storage",
  "regex",
@@ -2637,7 +2687,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "warp",
- "web3",
+ "web3 0.17.0 (git+https://github.com/tomusdrw/rust-web3.git?rev=a425fa747bca69c7aede4d2c2828f7267d79227e)",
 ]
 
 [[package]]
@@ -2669,6 +2719,21 @@ checksum = "5dc90fe6c7be1a323296982db1836d1ea9e47b6839496dde9a541bc496df3516"
 dependencies = [
  "libc",
  "winapi",
+]
+
+[[package]]
+name = "soketto"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4919971d141dbadaa0e82b5d369e2d7666c98e4625046140615ca363e50d4daa"
+dependencies = [
+ "base64",
+ "bytes",
+ "futures",
+ "httparse",
+ "log",
+ "rand",
+ "sha-1",
 ]
 
 [[package]]
@@ -2710,7 +2775,7 @@ dependencies = [
  "mockall",
  "model",
  "num",
- "primitive-types",
+ "primitive-types 0.10.1",
  "prometheus",
  "rand",
  "reqwest",
@@ -2725,7 +2790,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "transaction-retry",
- "web3",
+ "web3 0.17.0 (git+https://github.com/tomusdrw/rust-web3.git?rev=a425fa747bca69c7aede4d2c2828f7267d79227e)",
 ]
 
 [[package]]
@@ -3525,14 +3590,48 @@ dependencies = [
 [[package]]
 name = "web3"
 version = "0.17.0"
-source = "git+https://github.com/tomusdrw/rust-web3.git?rev=a425fa747bca69c7aede4d2c2828f7267d79227e#a425fa747bca69c7aede4d2c2828f7267d79227e"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd24abe6f2b68e0677f843059faea87bcbd4892e39f02886f366d8222c3c540d"
 dependencies = [
- "arrayvec",
+ "arrayvec 0.5.2",
  "base64",
  "bytes",
  "derive_more",
- "ethabi",
- "ethereum-types",
+ "ethabi 14.1.0",
+ "ethereum-types 0.11.0",
+ "futures",
+ "futures-timer",
+ "headers",
+ "hex",
+ "jsonrpc-core",
+ "log",
+ "parking_lot",
+ "pin-project",
+ "reqwest",
+ "rlp",
+ "secp256k1",
+ "serde",
+ "serde_json",
+ "soketto 0.5.0",
+ "tiny-keccak",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "url",
+ "web3-async-native-tls",
+]
+
+[[package]]
+name = "web3"
+version = "0.17.0"
+source = "git+https://github.com/tomusdrw/rust-web3.git?rev=a425fa747bca69c7aede4d2c2828f7267d79227e#a425fa747bca69c7aede4d2c2828f7267d79227e"
+dependencies = [
+ "arrayvec 0.7.1",
+ "base64",
+ "bytes",
+ "derive_more",
+ "ethabi 15.0.0",
+ "ethereum-types 0.12.1",
  "futures",
  "futures-timer",
  "headers",
@@ -3547,7 +3646,7 @@ dependencies = [
  "secp256k1",
  "serde",
  "serde_json",
- "soketto",
+ "soketto 0.7.0",
  "tiny-keccak",
  "tokio",
  "tokio-util",

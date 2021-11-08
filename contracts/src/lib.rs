@@ -87,7 +87,7 @@ mod tests {
             }};
         }
 
-        for network in &[1, 4, 100] {
+        for network in &[1, 4, 97, 56 , 100] {
             assert_has_deployment_address!(GPv2Settlement for *network);
             assert_has_deployment_address!(SushiswapV2Factory for *network);
             assert_has_deployment_address!(SushiswapV2Router02 for *network);
@@ -95,7 +95,7 @@ mod tests {
             assert_has_deployment_address!(UniswapV2Router02 for *network);
             assert_has_deployment_address!(WETH9 for *network);
         }
-        for network in &[1, 4] {
+        for network in &[1, 4, 97, 56] {
             assert_has_deployment_address!(BalancerV2Vault for *network);
             assert_has_deployment_address!(BalancerV2WeightedPoolFactory for *network);
             assert_has_deployment_address!(BalancerV2WeightedPool2TokensFactory for *network);
@@ -113,10 +113,10 @@ mod tests {
             }};
         }
 
-        for network in &[1, 4, 100] {
+        for network in &[1, 4, 97, 56, 100] {
             assert_has_deployment_information!(GPv2Settlement for *network);
         }
-        for network in &[1, 4] {
+        for network in &[1, 4, 97, 56] {
             assert_has_deployment_information!(BalancerV2Vault for *network);
             assert_has_deployment_information!(BalancerV2WeightedPoolFactory for *network);
             assert_has_deployment_information!(BalancerV2WeightedPool2TokensFactory for *network);
