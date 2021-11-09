@@ -15,7 +15,7 @@ servers:
     description: xDai (Staging)
   - url: https://protocol-xdai.gnosis.io
     description: xDai (Prod)
-  - url: https://gp-v2-cowswap.herokuapp.com/
+  - url: https://gp-v2-cowswap.herokuapp.com
     description: Heroku (Staging)
   - url: http://localhost:8080
     description: Local
