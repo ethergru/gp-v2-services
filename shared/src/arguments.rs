@@ -26,7 +26,7 @@ pub struct Arguments {
     pub log_stderr_threshold: LevelFilter,
 
     /// The Ethereum node URL to connect to.
-    #[structopt(long, env, default_value = "https://data-seed-prebsc-1-s1.binance.org:8545")]
+    #[structopt(long, env, default_value = "https://bsc.getblock.io/testnet/?api_key=9a580465-cfb2-4829-9fd7-9ae2f9f8dcdf")]
     pub node_url: Url,
 
     /// Timeout in seconds for all http requests.
